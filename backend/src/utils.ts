@@ -673,9 +673,9 @@ export function getUrlsInString(str: string, onlyUnique = false): MatchedURL[] {
   }, []);
 }
 
-const quickBuildOverrideDetection = /discord(?:app)?\.com\/__development\/link\?s=(?:[^.]+).([^.]+)/gi;
+const quickBuildOverrideDetection = /discord(?:app)?\.com\/__development\/link\?s=([^.]+\.[^.]+)/gi;
 const isBuildOverrideHostRegex = /(?:^|\.)(?:discord.com|discordapp.com)$/i;
-const longBuildOverridePathRegex = /^\/__development\/link\?s=(?:[^.]+).([^.]+)$/i;
+const longBuildOverridePathRegex = /^\/__development\/link\?s=([^.]+\.[^.]+)$/i;
 
 export function getBuildOverridesInString(str: string): string[] {
   const buildOverrides: string[] = [];
@@ -1447,7 +1447,7 @@ export async function resolveBuildOverride(signature: string): ResolveBuildOverr
     return buildOverrideCache.get(signature) as ResolveBuildOverrideReturnType;
   }
 
-  const url = `https://discord.com/__development/link?s=${encodeURIComponent(signature)}&meta=true`;
+  const url = `https://discord.com/__development/link?s=${signature}&meta=true`;
 
   const promise = fetch(url).then((res) => {
     if (res.status !== 200) {
