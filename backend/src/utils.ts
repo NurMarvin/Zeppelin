@@ -680,9 +680,6 @@ const longBuildOverridePathRegex = /^\/__development\/link\?s=(?:[^.]+).([^.]+)$
 export function getBuildOverridesInString(str: string): string[] {
   const buildOverrides: string[] = [];
 
-  // Clean up markdown
-  str = str.replace(/[|*_~]/g, "");
-
   // Clean up URI encoding
   str = decodeURI(str);
 
