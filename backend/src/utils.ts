@@ -47,6 +47,7 @@ import { decodeAndValidateStrict, StrictValidationError } from "./validatorUtils
 import { z, ZodError } from "zod";
 import { getProfiler } from "./profiler";
 import { performance } from "perf_hooks";
+import fetch from "node-fetch";
 
 const fsp = fs.promises;
 
@@ -672,6 +673,52 @@ export function getUrlsInString(str: string, onlyUnique = false): MatchedURL[] {
   }, []);
 }
 
+const quickBuildOverrideDetection = /discord(?:app)?\.com\/__development\/link\?s=(?:[^.]+).([^.]+)/gi;
+const isBuildOverrideHostRegex = /(?:^|\.)(?:discord.com|discordapp.com)$/i;
+const longBuildOverridePathRegex = /^\/__development\/link\?s=(?:[^.]+).([^.]+)$/i;
+
+export function getBuildOverridesInString(str: string): string[] {
+  const buildOverrides: string[] = [];
+
+  // Clean up markdown
+  str = str.replace(/[|*_~]/g, "");
+
+  // Clean up URI encoding
+  str = decodeURI(str);
+
+  // Quick detection
+  const quickDetectionMatch = str.matchAll(quickBuildOverrideDetection);
+
+  if (quickDetectionMatch) {
+    buildOverrides.push(...[...quickDetectionMatch].map((m) => m[1]));
+  }
+
+  // Deep detection via URL parsing
+  const linksInString = getUrlsInString(str, true);
+  const potentialBuildOverrideLinks = linksInString.filter((url) => isBuildOverrideHostRegex.test(url.hostname));
+  const withNormalizedPaths = potentialBuildOverrideLinks.map((url) => {
+    url.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/g, "");
+    return url;
+  });
+
+  const signaturesFromBuildOverrideLinks = withNormalizedPaths
+    .map((url) => {
+      // discordapp.com/__development/link?s=<code>[/anything]
+      // discord.com/__development/link?s=[/anything]
+      const longBuildOverrideMatch = url.pathname.match(longBuildOverridePathRegex);
+      if (longBuildOverrideMatch) {
+        return longBuildOverrideMatch[1];
+      }
+
+      return null;
+    })
+    .filter(Boolean) as string[];
+
+  buildOverrides.push(...signaturesFromBuildOverrideLinks);
+
+  return unique(buildOverrides);
+}
+
 export function parseInviteCodeInput(str: string): string {
   if (str.match(/^[a-z0-9]{6,}$/i)) {
     return str;
@@ -727,7 +774,7 @@ export function getInviteCodesInString(str: string): string[] {
       // discordapp.com/invite/<code>[/anything]
       // discord.com/friend-invite/<code>[/anything]
       // discordapp.com/friend-invite/<code>[/anything]
-      const longInviteMatch = url.pathname.match(longInvitePathRegex);
+      const longInviteMatch = url.pathname.match(longBuildOverridePathRegex);
       if (longInviteMatch) {
         return longInviteMatch[1];
       }
@@ -1385,6 +1432,37 @@ export async function resolveInvite<T extends boolean>(
   inviteCache.set(key, promise);
 
   return promise as ResolveInviteReturnType<T>;
+}
+
+export type BuildOverride = {
+  targetBuildOverride: { [key: string]: { type: "id" | "branch"; id: string } };
+  releaseChannel: string | null;
+  validForUserIds: Snowflake[];
+  allowLoggedOut: boolean;
+  expiresAt: string;
+};
+
+const buildOverrideCache = new SimpleCache<Promise<BuildOverride | null>>(10 * MINUTES, 200);
+
+type ResolveBuildOverrideReturnType = Promise<BuildOverride | null>;
+export async function resolveBuildOverride(signature: string): ResolveBuildOverrideReturnType {
+  if (buildOverrideCache.has(signature)) {
+    return buildOverrideCache.get(signature) as ResolveBuildOverrideReturnType;
+  }
+
+  const url = `https://discord.com/__development/link?s=${encodeURIComponent(signature)}&meta=true`;
+
+  const promise = fetch(url).then((res) => {
+    if (res.status !== 200) {
+      return null;
+    }
+
+    return res.json() as Promise<BuildOverride>;
+  });
+
+  buildOverrideCache.set(signature, promise);
+
+  return promise as ResolveBuildOverrideReturnType;
 }
 
 const internalStickerCache: LimitedCollection<Snowflake, Sticker> = new LimitedCollection({ maxSize: 500 });

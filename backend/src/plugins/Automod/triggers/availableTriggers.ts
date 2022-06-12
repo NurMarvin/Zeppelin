@@ -11,6 +11,7 @@ import { KickTrigger } from "./kick";
 import { LineSpamTrigger } from "./lineSpam";
 import { LinkSpamTrigger } from "./linkSpam";
 import { MatchAttachmentTypeTrigger } from "./matchAttachmentType";
+import { MatchBuildOverridesTrigger } from "./matchBuildOverrides";
 import { MatchMimeTypeTrigger } from "./matchMimeType";
 import { MatchInvitesTrigger } from "./matchInvites";
 import { MatchLinksTrigger } from "./matchLinks";
@@ -41,6 +42,7 @@ export const availableTriggers: Record<string, AutomodTriggerBlueprint<any, any>
   match_words: MatchWordsTrigger,
   match_regex: MatchRegexTrigger,
   match_invites: MatchInvitesTrigger,
+  match_build_overrides: MatchBuildOverridesTrigger,
   match_links: MatchLinksTrigger,
   match_attachment_type: MatchAttachmentTypeTrigger,
   match_mime_type: MatchMimeTypeTrigger,
@@ -83,6 +85,7 @@ export const AvailableTriggers = t.type({
   match_words: MatchWordsTrigger.configType,
   match_regex: MatchRegexTrigger.configType,
   match_invites: MatchInvitesTrigger.configType,
+  match_build_overrides: MatchBuildOverridesTrigger.configType,
   match_links: MatchLinksTrigger.configType,
   match_attachment_type: MatchAttachmentTypeTrigger.configType,
   match_mime_type: MatchMimeTypeTrigger.configType,
